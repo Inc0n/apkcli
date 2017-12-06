@@ -1,0 +1,7 @@
+#!/bin/bash
+
+tool_path=$TOOL_KIT/android
+name=${1%.*}-signed
+java -classpath $tool_path/testsign.jar testsign $1 $name.apk
+zipalign -f 4 $name.apk $name-za.apk
+
