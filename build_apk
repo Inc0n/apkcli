@@ -1,75 +1,219 @@
 #!/bin/bash
 
-if [ ! $1 ]; then
-	echo android build script
-	echo usage build_apk dir_path [options] 
-	echo
-	echo -c --clean   cleanup apk files created except the final signed veriosn
-	echo -i --install install the apk file after the build
-	echo -f --force   overwrite existing apk file 
-	echo "-n --name    specify name for the apk file"
-	exit 0
-fi
+print_help() {
+    echo Android Build Script
+    echo usage build_apk dir_path [options] 
+    echo
+    echo -b --build   build apk file
+    echo -c --clean   cleanup apk files created except the final signed veriosn
+    echo -i --install install the apk file after the build
+    echo -f --force   overwrite existing apk file 
+    echo "-n --name    specify name for the apk file"
+    exit 0
+}
 
-dir_name=$1
-NAME=$1
-while [ $1 ]; do
-	shift # past the name of dir and future options
-	case $1 in 
-		-c|--clean-up)
-		CLEAN=true
-		;;
-		-i|--install)
-		INSTALL=true
-		;;
-		-f|--force)
-		FORCE=true
-		;;
-		-n|--name)
-		NAME=$2
-		shift
-		;;
-	esac
-done
+if [ -d $1 ]; then {
+    case $1 in 
+        build|b)
+	BUILD=true        
+        ;;
+	install|i)
+	INSTALL=true
+	;;
+    esac
 
-# if dir does notexist then program will terminate
-if [ ! -d $dir_name ]; then
+    dir_name="$1"
+    NAME="$1"
+    shift
+} 
+
+if [ $BUILD ]; then
+    
+    # if dir does notexist then program will terminate
+    if [ ! -d "$dir_name" ]; then
 	echo [x] source apk directory does not exist
+	echo
+	print_help
 	exit 1
-fi
+    fi
+    while [ "$1" ]; do
+	#shift # past the name of dir and future options
+	case $1 in 
+	-c|--clean-up)
+	    CLEAN=true
+	    shift
+	    ;;
+	-i|--install)
+	    INSTALL=true
+	    shift
+	    ;;
+	-f|--force)
+	    FORCE=true
+	    shift
+	    ;;
+	-o|--output)
+	    shift
+	    NAME="$1"
+	    shift
+	    ;;
+	*)
+	    echo $1
+	    print_help
+	;;
+	esac
+    done
+fi 
+
 
 # check if the file by the same name exist
-if [ -f $NAME.apk ] && [ ! $FORCE ]; then
-	echo [x] $dir_name.apk already exist use -f to overwrite (not recommended)
-	echo     or specify new name with -n
-	exit 2
+if [ -f "$NAME.apk" ] && [ ! $FORCE ]; then
+    echo [x] $NAME.apk already exist use -f to overwrite  --- not recommended ---
+    echo     or specify new name with -n
+    exit 2
 fi
 
-output=$(apktool b $dir_name -o $NAME.apk)
+output=$(apktool b "$dir_name" -o "$NAME.apk")
 
 # if apk file not built means an error has occured
 if [ ! -f $NAME.apk ]; then
-	echo [x] ERROR while building apk
-	echo [x] APKTOOL output as follows
-	echo 	 $output
-	exit 3 
+    echo [x] ERROR while building apk
+    echo [x] APKTOOL output as follows
+    echo 	 $output
+    exit 3 
 fi
 
-echo [-] $NAME.apk has been successfully built
+echo [o] $NAME.apk has been successfully built
 
 # install the apk file to specified android device
-if [ $ANDROID_DEVICE ] && [ $INSTALL ]; then
-	echo [?] waiting for $ANDROID_DEVICE to respond
-	adb -s $ANDROID_DEVICE wait-for-device
-	echo [o] $ANDROID_DEVICE has responded
-	
-	# need to sign the apk to install 
-	$TOOL_KIT/android/sign_apk $NAME.apk
-	echo [o] finished signing apk
-	adb -s $ANDROID_DEVICE install $NAME-signed-za.apk
+if [ $INSTALL ]; then
+    #echo [?] waiting for $ANDROID_DEVICE to respond
+    #adb -s $ANDROID_DEVICE wait-for-device
+    #echo [o] $ANDROID_DEVICE has responded
+    
+    # need to sign the apk to install 
+    ~/.local/bin/sign_apk $NAME.apk
+    echo [o] finished signing apk
+    
+    if [ $FORCE ]; then
+        package_name=$(aapt dump badging Kali.apk | grep package | awk '{print $2}' | sed s/name=//g | sed s/\'//g) 
+        adb shell pm -k uninstall $package_name
+    fi
+
+	#adb -s $ANDROID_DEVICE install $NAME-signed-za.apk
+    adb install $NAME-signed-za.apk
 fi
 
 if [ $CLEAN ]; then 
-	rm TEMP
+    rm TEMP
 fi
 
+whitecap@WhiteCaps-MacBook-Pro:~/.local/bin$ clear && cat build_apk 
+
+#!/bin/bash
+
+print_help() {
+    echo Android Build Script
+    echo usage build_apk dir_path [options] 
+    echo
+    echo -b --build   build apk file
+    echo -c --clean   cleanup apk files created except the final signed veriosn
+    echo -i --install install the apk file after the build
+    echo -f --force   overwrite existing apk file 
+    echo "-n --name    specify name for the apk file"
+    exit 0
+}
+
+if [ -d $1 ]; then {
+    case $1 in 
+        build|b)
+	BUILD=true        
+        ;;
+	install|i)
+	INSTALL=true
+	;;
+    esac
+
+    dir_name="$1"
+    NAME="$1"
+    shift
+} 
+
+if [ $BUILD ]; then
+    
+    # if dir does notexist then program will terminate
+    if [ ! -d "$dir_name" ]; then
+	echo [x] source apk directory does not exist
+	echo
+	print_help
+	exit 1
+    fi
+    while [ "$1" ]; do
+	#shift # past the name of dir and future options
+	case $1 in 
+	-c|--clean-up)
+	    CLEAN=true
+	    shift
+	    ;;
+	-i|--install)
+	    INSTALL=true
+	    shift
+	    ;;
+	-f|--force)
+	    FORCE=true
+	    shift
+	    ;;
+	-o|--output)
+	    shift
+	    NAME="$1"
+	    shift
+	    ;;
+	*)
+	    echo $1
+	    print_help
+	;;
+	esac
+    done
+fi 
+
+
+# check if the file by the same name exist
+if [ -f "$NAME.apk" ] && [ ! $FORCE ]; then
+    echo [x] $NAME.apk already exist use -f to overwrite  --- not recommended ---
+    echo     or specify new name with -n
+    exit 2
+fi
+
+output=$(apktool b "$dir_name" -o "$NAME.apk")
+
+# if apk file not built means an error has occured
+if [ ! -f $NAME.apk ]; then
+    echo [x] ERROR while building apk
+    echo [x] APKTOOL output as follows
+    echo 	 $output
+    exit 3 
+fi
+
+echo [o] $NAME.apk has been successfully built
+
+# install the apk file to specified android device
+if [ $INSTALL ]; then
+    #echo [?] waiting for $ANDROID_DEVICE to respond
+    #adb -s $ANDROID_DEVICE wait-for-device
+    #echo [o] $ANDROID_DEVICE has responded
+    
+    # need to sign the apk to install 
+    ~/.local/bin/sign_apk $NAME.apk
+    echo [o] finished signing apk
+    
+    if [ $FORCE ]; then
+        package_name=$(aapt dump badging Kali.apk | grep package | awk '{print $2}' | sed s/name=//g | sed s/\'//g) 
+        adb shell pm -k uninstall $package_name
+    fi
+
+	#adb -s $ANDROID_DEVICE install $NAME-signed-za.apk
+    adb install $NAME-signed-za.apk
+fi
+
+if [ $CLEAN ]; then 
+    rm TEMP
+fi
